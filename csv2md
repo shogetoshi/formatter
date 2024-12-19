@@ -1,0 +1,95 @@
+#!/usr/bin/env python
+import argparse
+import csv
+import sys
+from io import StringIO
+
+
+def get_column_widths(rows):
+    if not rows:
+        return []
+
+    # 最大の列数を取得
+    max_cols = max(len(row) for row in rows)
+
+    # 各列の最大幅を計算
+    widths = []
+    for col_idx in range(max_cols):
+        column = [row[col_idx] if col_idx < len(row) else "" for row in rows]
+        width = max(len(str(cell)) for cell in column)
+        widths.append(width)
+    return widths
+
+
+def csv_to_markdown(csv_string, delimiter=",", has_header=True):
+    # CSVデータを解析
+    reader = csv.reader(StringIO(csv_string.strip()), delimiter=delimiter)
+    rows = [row for row in reader if row]  # 空の行をフィルタリング
+
+    if not rows:
+        return ""
+
+    # ヘッダなしの場合、列名を生成
+    if not has_header:
+        max_cols = max(len(row) for row in rows)
+        header = [f"c{i+1}" for i in range(max_cols)]
+        rows.insert(0, header)
+
+    # 各列の最大幅を取得
+    widths = get_column_widths(rows)
+
+    # ヘッダー行を作成
+    header = rows[0]
+    # 不足している列を空文字で補完
+    header.extend([""] * (len(widths) - len(header)))
+    header_row = (
+        "|"
+        + "|".join(str(cell).ljust(width) for cell, width in zip(header, widths))
+        + "|"
+    )
+
+    # 区切り行を作成
+    separator_row = "|" + "|".join("-" * width for width in widths) + "|"
+
+    # データ行を作成
+    data_rows = []
+    for row in rows[1:]:
+        # 不足している列を空文字で補完
+        row = row + [""] * (len(widths) - len(row))
+        formatted_row = (
+            "|"
+            + "|".join(str(cell).ljust(width) for cell, width in zip(row, widths))
+            + "|"
+        )
+        data_rows.append(formatted_row)
+
+    # 全ての行を結合
+    markdown_table = "\n".join([header_row, separator_row] + data_rows)
+
+    return markdown_table
+
+
+def main():
+    # コマンドライン引数の解析
+    parser = argparse.ArgumentParser(description="Convert CSV to Markdown table")
+    parser.add_argument(
+        "-d", "--delimiter", default=",", help="Delimiter character (default: ,)"
+    )
+    parser.add_argument(
+        "--no-header", action="store_true", help="Input has no header row"
+    )
+    args = parser.parse_args()
+
+    # 入力を読み込み、空行を除去
+    input_lines = [line.strip() for line in sys.stdin.readlines() if line.strip()]
+    print(
+        csv_to_markdown(
+            "\n".join(input_lines),
+            delimiter=args.delimiter,
+            has_header=not args.no_header,
+        )
+    )
+
+
+if __name__ == "__main__":
+    main()
