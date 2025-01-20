@@ -79,13 +79,14 @@ def main():
         "--no-header", action="store_true", help="Input has no header row"
     )
     args = parser.parse_args()
+    delimiter = "\t" if args.delimiter == r"\t" else args.delimiter
 
     # 入力を読み込み、空行を除去
     input_lines = [line.strip() for line in sys.stdin.readlines() if line.strip()]
     print(
         csv_to_markdown(
             "\n".join(input_lines),
-            delimiter=args.delimiter,
+            delimiter=delimiter,
             has_header=not args.no_header,
         )
     )
