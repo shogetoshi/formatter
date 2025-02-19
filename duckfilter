@@ -1,0 +1,38 @@
+#!/usr/bin/env python
+import argparse
+import re
+import subprocess
+
+p = argparse.ArgumentParser()
+p.add_argument("query")
+p.add_argument("-ascii", action="store_true")
+p.add_argument("-box", action="store_true")
+p.add_argument("-column", action="store_true")
+p.add_argument("-csv", action="store_true")
+p.add_argument("-html", action="store_true")
+p.add_argument("-json", action="store_true")
+p.add_argument("-line", action="store_true")
+p.add_argument("-list", action="store_true")
+p.add_argument("-markdown", action="store_true")
+p.add_argument("-quote", action="store_true")
+p.add_argument("-table", action="store_true")
+args_dict = vars(p.parse_args())
+option_array = [f"-{k}" for k, v in args_dict.items() if v and k != "query"]
+# print(f"{option_array=}")
+
+
+def get_query(query):
+    query = re.sub(r"from +JSON", "from read_json_auto('/dev/stdin')", query)
+    query = re.sub(r"from +CSV", "from read_csv_auto('/dev/stdin')", query)
+    query = re.sub(r"from +TSV", "from read_csv_auto('/dev/stdin')", query)
+    return query
+
+
+query = get_query(args_dict["query"])
+
+cmd = f'duckdb {" ".join(option_array)} -c "{query}"'
+proc = subprocess.run(
+    cmd,
+    shell=True,
+    text=True,
+)
