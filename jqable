@@ -1,40 +1,6 @@
 #!/usr/bin/env python
+import ast
 import json
-import re
 import sys
 
-
-def parse_custom_string(s):
-    """
-    指定された文字列を辞書（dict）としてパースします。
-
-    Args:
-        s (str): パース対象の文字列。
-
-    Returns:
-        list: パースされた辞書のリスト。
-
-    Raises:
-        ValueError: パースに失敗した場合。
-    """
-    try:
-        # ステップ1: シングルクォートをダブルクォートに置換
-        s = s.replace("'", '"')
-
-        # ステップ2: キーに対応する値をダブルクォートで囲む
-        # 例えば、"Key": value  -> "Key": "value"
-        # 正規表現で "Key": some_value または "Value": some_value を探して quotes で囲む
-        pattern = r'("Key":\s*)([^",\]\}]+)'
-        s = re.sub(pattern, r'\1"\2"', s)
-
-        pattern = r'("Value":\s*)([^",\]\}]+)'
-        s = re.sub(pattern, r'\1"\2"', s)
-
-        # ステップ3: JSONとしてパース
-        parsed = json.loads(s)
-        return parsed
-    except json.JSONDecodeError as e:
-        raise ValueError(f"文字列のパースに失敗しました: {e}")
-
-
-print(json.dumps(parse_custom_string(sys.stdin.read())))
+print(json.dumps(ast.literal_eval(sys.stdin.read())))
