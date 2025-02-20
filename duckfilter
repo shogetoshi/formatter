@@ -1,24 +1,34 @@
 #!/usr/bin/env python
 import argparse
+import json
 import re
 import subprocess
 
+import duckdb
+
+OUTPUT_FORMATS = [
+    "ascii",
+    "box",
+    "column",
+    "csv",
+    "html",
+    "json",
+    "line",
+    "list",
+    "markdown",
+    "quote",
+    "table",
+]
+
+
 p = argparse.ArgumentParser()
 p.add_argument("query")
-p.add_argument("-ascii", action="store_true")
-p.add_argument("-box", action="store_true")
-p.add_argument("-column", action="store_true")
-p.add_argument("-csv", action="store_true")
-p.add_argument("-html", action="store_true")
-p.add_argument("-json", action="store_true")
-p.add_argument("-line", action="store_true")
-p.add_argument("-list", action="store_true")
-p.add_argument("-markdown", action="store_true")
-p.add_argument("-quote", action="store_true")
-p.add_argument("-table", action="store_true")
+p.add_argument(
+    "-o",
+    "--output",
+    choices=OUTPUT_FORMATS,
+)
 args_dict = vars(p.parse_args())
-option_array = [f"-{k}" for k, v in args_dict.items() if v and k != "query"]
-# print(f"{option_array=}")
 
 
 def get_query(query):
@@ -28,11 +38,55 @@ def get_query(query):
     return query
 
 
-query = get_query(args_dict["query"])
+def extract_output_format(args):
+    if output_format := args.get("output"):
+        args.pop("output")
+    return output_format
 
-cmd = f'duckdb {" ".join(option_array)} -c "{query}"'
-proc = subprocess.run(
-    cmd,
-    shell=True,
-    text=True,
-)
+
+def get_options(args):
+    return []
+
+
+def query_json_with_duckdb(sql_query):
+    conn = duckdb.connect(database=":memory:")
+
+    try:
+        result = conn.execute(sql_query).fetchall()
+        column_names = [desc[0] for desc in conn.description]
+        result_dict = [dict(zip(column_names, row)) for row in result]
+        return result_dict
+    except Exception as e:
+        print(f"エラーが発生しました: {e}")
+        return []
+    finally:
+        conn.close()
+
+
+def main():
+    query = get_query(args_dict["query"])
+    output_format = extract_output_format(args_dict)
+
+    if output_format != "json":
+        cmd_array = [
+            "duckdb",
+            " ".join(get_options(args_dict)),
+            f"-{output_format}" if output_format else "",
+            "-c",
+            f'"{query}"',
+        ]
+        cmd = " ".join(cmd_array)
+        # print(cmd)
+        proc = subprocess.run(
+            cmd,
+            shell=True,
+            text=True,
+        )
+        print(proc.stdout)
+    else:
+        j = query_json_with_duckdb(query)
+        print(json.dumps(j))
+
+
+if __name__ == "__main__":
+    main()
