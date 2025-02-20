@@ -77,12 +77,11 @@ def main():
         ]
         cmd = " ".join(cmd_array)
         # print(cmd)
-        proc = subprocess.run(
+        subprocess.run(
             cmd,
             shell=True,
             text=True,
         )
-        print(proc.stdout)
     else:
         j = query_json_with_duckdb(query)
         print(json.dumps(j))
