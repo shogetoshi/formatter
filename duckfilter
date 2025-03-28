@@ -3,6 +3,7 @@ import argparse
 import json
 import re
 import subprocess
+from datetime import date, datetime
 
 import duckdb
 
@@ -29,6 +30,12 @@ p.add_argument(
     choices=OUTPUT_FORMATS,
 )
 args_dict = vars(p.parse_args())
+
+
+def json_serial(obj):
+    if isinstance(obj, (datetime, date)):
+        return obj.isoformat()
+    raise TypeError(f"Type {type(obj)} not serializable")
 
 
 def get_query(query):
@@ -84,7 +91,7 @@ def main():
         )
     else:
         j = query_json_with_duckdb(query)
-        print(json.dumps(j))
+        print(json.dumps(j, default=json_serial))
 
 
 if __name__ == "__main__":
