@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+## formatだけやる
+function soft() {
+    cat - | sqlfluff format - 2>/dev/null
+}
+
+## lintで確認するパターン
+function gentle() {
+    formated=$(cat - | sqlfluff format - 2>/dev/null)
+    lint_result=$(echo "$formated" | sqlfluff lint - 2>/dev/null | grep -v '^None$')
+
+    if echo "$lint_result" | head -1 | grep -q 'FAIL$'; then
+        echo "$formated" | cat -n
+        echo "$lint_result"
+    else
+        echo "$formated" | sqlfluff fix - 2>/dev/null
+    fi
+}
+
+function forceful() {
+    cat - | sqlfluff fix - | grep -v '^None$'
+}
+
+soft
+#gentle
+#forceful
