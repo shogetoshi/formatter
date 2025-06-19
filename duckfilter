@@ -3,6 +3,7 @@ import argparse
 import json
 import re
 import subprocess
+import uuid
 from datetime import date, datetime
 
 import duckdb
@@ -35,6 +36,8 @@ args_dict = vars(p.parse_args())
 def json_serial(obj):
     if isinstance(obj, (datetime, date)):
         return obj.isoformat()
+    elif isinstance(obj, uuid.UUID):
+        return str(obj)
     raise TypeError(f"Type {type(obj)} not serializable")
 
 
