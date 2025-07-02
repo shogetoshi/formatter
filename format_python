@@ -1,5 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-black - -q
-isort - -q
+# 共通フォーマット関数
+format_python_content() {
+    black -q - | isort -q -
+}
+
+# 引数の数によって処理を分岐
+if [ $# -eq 0 ]; then
+    # ファイル指定なし: 標準入力をフォーマットして標準出力
+    format_python_content
+else
+    # 複数ファイル: 各ファイルに対して処理を実行
+    for file in "$@"; do
+        cat "$file" | format_python_content > "$file.tmp" && mv "$file.tmp" "$file"
+    done
+fi
