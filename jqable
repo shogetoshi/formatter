@@ -1,6 +1,93 @@
 #!/usr/bin/env python
 import ast
+import datetime
 import json
 import sys
+import warnings
 
-print(json.dumps(ast.literal_eval(sys.stdin.read())))
+from dateutil.tz import tzlocal
+
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+
+
+def convert_datetime_to_str(obj):
+    if isinstance(obj, datetime.datetime):
+        return obj.isoformat()
+    elif isinstance(obj, dict):
+        return {k: convert_datetime_to_str(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_datetime_to_str(item) for item in obj]
+    else:
+        return obj
+
+
+def safe_eval(data_str):
+    try:
+        return ast.literal_eval(data_str)
+    except (ValueError, SyntaxError):
+
+        class SafeEval:
+            def __init__(self):
+                self.safe_names = {
+                    "datetime": datetime,
+                    "tzlocal": tzlocal,
+                    "True": True,
+                    "False": False,
+                    "None": None,
+                }
+
+            def visit(self, node):
+                if isinstance(node, ast.Expression):
+                    return self.visit(node.body)
+                elif isinstance(node, ast.Dict):
+                    return {
+                        self.visit(k): self.visit(v)
+                        for k, v in zip(node.keys, node.values)
+                    }
+                elif isinstance(node, ast.List):
+                    return [self.visit(item) for item in node.elts]
+                elif isinstance(node, ast.Tuple):
+                    return tuple(self.visit(item) for item in node.elts)
+                elif isinstance(node, ast.Constant):
+                    return node.value
+                elif hasattr(ast, "Str") and isinstance(node, ast.Str):
+                    return node.s
+                elif hasattr(ast, "Num") and isinstance(node, ast.Num):
+                    return node.n
+                elif isinstance(node, ast.UnaryOp):
+                    operand = self.visit(node.operand)
+                    if isinstance(node.op, ast.UAdd):
+                        return +operand
+                    elif isinstance(node.op, ast.USub):
+                        return -operand
+                    elif isinstance(node.op, ast.Not):
+                        return not operand
+                    else:
+                        return operand
+                elif isinstance(node, ast.Name):
+                    return self.safe_names.get(node.id, node.id)
+                elif isinstance(node, ast.Call):
+                    func = self.visit(node.func)
+                    args = [self.visit(arg) for arg in node.args]
+                    kwargs = {kw.arg: self.visit(kw.value) for kw in node.keywords}
+                    if func == datetime.datetime:
+                        return func(*args, **kwargs)
+                    elif func == tzlocal:
+                        return func(*args, **kwargs)
+                    else:
+                        return str(func) + "(" + ", ".join(map(str, args)) + ")"
+                elif isinstance(node, ast.Attribute):
+                    value = self.visit(node.value)
+                    return getattr(value, node.attr)
+                else:
+                    return str(node)
+
+        tree = ast.parse(data_str, mode="eval")
+        evaluator = SafeEval()
+        return evaluator.visit(tree)
+
+
+input_data = sys.stdin.read().strip()
+parsed_data = safe_eval(input_data)
+converted_data = convert_datetime_to_str(parsed_data)
+print(json.dumps(converted_data, indent=2, ensure_ascii=False))
